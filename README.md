@@ -20,7 +20,7 @@ pnpm install
 ```
 
 # 🛠️ Setup
-You only need your Github account personal token to use GitXray. Please [click me](https://www.youtube.com/watch?v=0C-B6bFuQYU) for tutorial.
+You only need your Github account personal token to use GitXray. Please [click me](https://www.youtube.com/watch?v=0C-B6bFuQYU) for the tutorial.
 
 # 🚀 Usage
 ```

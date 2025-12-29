@@ -25,12 +25,9 @@ const checkToken = async()=>{
     }
 }
 
-const info = async()=>{
-    const accountInfo = await checkToken(token)
-
+const info = async(accountInfo)=>{
     console.log()
     log("=== GENERAL")
-    log(`Plan: ${accountInfo.plan.name.toUpperCase()}`)
     log(`Name: ${accountInfo.login}`)
     log(`Username: ${accountInfo.name}`)
     log(`BIO: ${accountInfo.bio || "N/A"}`)
@@ -40,6 +37,7 @@ const info = async()=>{
     log(`Website: ${accountInfo.blog || "N/A"}`)
     log(`Company: ${accountInfo.company || "N/A"}`)
     log(`Hireable: ${accountInfo.hireable ? "Yes" : "No"}`)
+    log(`Github Staff: ${accountInfo.site_admin ? "Yes" : "No"}`)
     log(`Created At: ${accountInfo.created_at}`)
 
     log("\n=== OTHERS")
@@ -50,9 +48,13 @@ const info = async()=>{
     log(`Following: ${accountInfo.following}`)
 
     log("\n=== PLAN")
-    log(`Type: ${accountInfo.plan.name.toUpperCase()}`)
-    log(`Max Space: ${accountInfo.plan.space}`)
-    log(`Max Private Repositories: ${accountInfo.plan.private_repos}`)
+    if(accountInfo.hasOwnProperty("plan")){
+        log(`Type: ${accountInfo.plan.name.toUpperCase()}`)
+        log(`Max Space: ${accountInfo.plan.space}`)
+        log(`Max Private Repositories: ${accountInfo.plan.private_repos}`)
+    }else{
+        log("Unable to retrieve user plan information.")
+    }
 
     log("\n === ADDITIONAL")
     log(`2FA: ${accountInfo.two_factor_authentication ? "Yes" : "No"}`)
@@ -145,7 +147,7 @@ const repoFiles = async(author, repo, path = "")=>{
         const response = await ky.get(`https://api.github.com/repos/${author}/${repo}/contents/${path}?per_page=100`, {
             headers: {
                 Authorization: `Bearer ${token}`,
-                Accept: "application/vnd.github.v3+json",
+                Accept: "application/vnd.github.v3+json"
             }
         }).json()
         var fileNames = []
@@ -186,6 +188,52 @@ const extFilesN = async()=>{
     }
 }
 
+const userInfo = async()=>{
+    try{
+        const username = readLine.question(chalk.yellow(`Github Username: `))
+        if(!username.length) return log("Invalid Github Username.")
+
+        const response = await ky.get(`https://api.github.com/users/${username}`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: "application/vnd.github.v3+json",
+            }
+        }).json()
+        await info(response)
+    }catch{
+        log("Invalid Github Username.")
+    }
+}
+
+const gitStaff = async () => {
+    try {
+        const username = readLine.question(chalk.yellow("GitHub Username: "))
+        var siteAdmins = 0
+        var page = 1
+
+        log("Extracting user followers and finding Github staff...")
+        while (true) {
+            const response = await ky.get(`https://api.github.com/users/${username}/followers?page=${page}&per_page=100`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: "application/vnd.github.v3+json"
+                }
+            }).json()
+
+            if(!response.length) break;
+            for ( const follower of response ) if(follower.site_admin){
+                log(`Found -> https://github.com/${follower.login}`)
+                siteAdmins++
+            }
+            page++
+        }
+
+        siteAdmins ? log(`${siteAdmins} Github staff in followers found.`) : log("No Github staff in followers found.")
+    }catch{
+        log("Invalid Github Username.")
+    }
+}
+
 // Main
 const banner = ()=>{
     console.log(chalk.yellowBright(`
@@ -195,9 +243,9 @@ const banner = ()=>{
         ██║  ███╗██║   ██║    ╚███╔╝ ██████╔╝███████║ ╚████╔╝ 
         ██║   ██║██║   ██║    ██╔██╗ ██╔══██╗██╔══██║  ╚██╔╝  
         ╚██████╔╝██║   ██║   ██╔╝ ██╗██║  ██║██║  ██║   ██║   
-         ╚═════╝ ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝                                            
+         ╚═════╝ ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝     v1.0.0                                       
                             GitXray
-                        by NCryptsion
+                         by NCryptsion
     `))
 }
 
@@ -237,18 +285,25 @@ REPOSITORY
 Command                         Description
 =======                         ===========
 help                            Display the help menu.
+userInfo                        Display the information of a user.
 repoInfo                        Display the information of a repository.
 extPulls                        Extract all the pulls of a repository.
 extFilesN                       Extract all the files name of a repository.
+gitStaff                        Crawl the user followers for potential Github staff.
             `)
     }else if(command === "info"){
-        await info()
+        const accountInfo = await checkToken(token)
+        await info(accountInfo)
+    }else if(command === "userInfo"){
+        await userInfo()
     }else if(command === "repoInfo"){
         await repoInfo()
     }else if(command === "extPulls"){
         await extPulls()
     }else if(command === "extFilesN"){
         await extFilesN()
+    }else if(command === "gitStaff"){
+        await gitStaff()
     }else if(command === "clear"){
         console.clear()
     }else if(command === "exit"){
